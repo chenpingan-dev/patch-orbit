@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta
       name="description"
-      content="Map a Git change to Go packages, import evidence and a focused review checklist"
+      content="Follow a Go change through package imports. Inspect the file and line behind every connection."
     />
     <meta
       http-equiv="Content-Security-Policy"
@@ -17,68 +17,81 @@
     </style>
   </head>
   <body>
+    <a class="skip-link" href="#map-workspace" data-i18n="skip"></a>
     <header class="topbar">
       <a
         class="brand"
         href="https://github.com/chenpingan-dev/patch-orbit"
         target="_blank"
         rel="noreferrer"
-        ><span class="brand-icon">◎</span>Patch Orbit
-        <span class="version">v0.1</span></a
       >
+        <span class="brand-icon"
+          ><svg viewBox="0 0 36 36" aria-hidden="true">
+            <ellipse
+              cx="18"
+              cy="18"
+              rx="16"
+              ry="8"
+              transform="rotate(-40 18 18)"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+            />
+            <circle cx="18" cy="18" r="4.5" fill="currentColor" />
+            <circle cx="29" cy="8" r="2.7" fill="currentColor" /></svg
+        ></span>
+        <span>Patch Orbit</span>
+      </a>
+      <span class="app-purpose" data-i18n="heading"></span>
       <div class="top-actions">
-        <span class="local-label"><i></i><span data-i18n="offline"></span></span
-        ><button id="language" class="quiet">English</button
-        ><a
+        <a
           class="source-link"
           href="https://github.com/chenpingan-dev/patch-orbit#readme"
           target="_blank"
           rel="noreferrer"
           >GitHub ↗</a
         >
+        <button id="language" class="quiet">English</button>
+        <button id="export" class="secondary" data-i18n="export"></button>
+        <button id="import" class="primary">
+          <svg viewBox="0 0 20 20" aria-hidden="true">
+            <path d="M10 13V3m-4 4 4-4 4 4M4 12v5h12v-5" /></svg
+          ><span data-i18n="import"></span>
+        </button>
+        <input id="file" type="file" accept=".json,application/json" hidden />
       </div>
     </header>
     <main>
-      <div class="page-heading">
-        <div>
-          <div class="eyebrow">CHANGE INTELLIGENCE</div>
-          <h1 data-i18n="heading"></h1>
-          <p data-i18n="subtitle"></p>
-        </div>
-        <div class="file-actions">
-          <button id="import" class="secondary" data-i18n="import"></button
-          ><button id="export" class="primary" data-i18n="export"></button
-          ><input
-            id="file"
-            type="file"
-            accept=".json,application/json"
-            hidden
-          />
-        </div>
-      </div>
-      <div class="commit-bar">
-        <div>
-          <span id="sample-badge" class="pill"></span
-          ><strong id="report-title"></strong><span id="module"></span>
+      <section class="report-heading">
+        <div class="report-identity">
+          <div class="report-type">
+            <span data-i18n="reportLabel"></span
+            ><span id="sample-badge" class="pill"></span>
+          </div>
+          <h1 id="report-title"></h1>
         </div>
         <div class="commit-range">
-          <span>BASE</span><code id="base"></code><b>→</b><span>HEAD</span
-          ><code id="head"></code>
+          <div><span>BASE</span><code id="base"></code></div>
+          <span class="commit-arrow" aria-hidden="true">→</span>
+          <div><span>HEAD</span><code id="head"></code></div>
         </div>
-      </div>
-      <section
-        class="metrics"
-        id="metrics"
-        aria-label="Change summary"
-      ></section>
-      <section class="workspace">
-        <aside class="package-panel panel">
+      </section>
+      <section class="workspace" id="map-workspace" tabindex="-1">
+        <aside class="package-panel">
+          <div class="module-label">
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <path d="m3 6 7-4 7 4v8l-7 4-7-4V6Zm0 0 7 4 7-4m-7 4v8" /></svg
+            ><span id="module"></span>
+          </div>
           <div class="panel-title">
             <h2 data-i18n="packages"></h2>
             <span id="package-count" class="count"></span>
           </div>
           <div class="search-box">
-            <input id="search" type="search" autocomplete="off" />
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <circle cx="8.5" cy="8.5" r="5.5" />
+              <path d="m13 13 4 4" /></svg
+            ><input id="search" type="search" autocomplete="off" />
           </div>
           <div class="scope-switch">
             <button id="affected" class="active" data-i18n="affected"></button
@@ -87,49 +100,65 @@
           <div id="package-list" class="package-list"></div>
           <div id="package-note" class="package-note"></div>
         </aside>
-        <section class="graph-panel panel">
-          <div class="panel-title">
-            <h2 data-i18n="map"></h2>
-            <div class="graph-actions">
-              <span id="visible-count"></span
+        <div class="main-panel">
+          <div class="workspace-toolbar">
+            <nav class="view-tabs" aria-label="Report views">
+              <button
+                id="map-tab"
+                data-view="map"
+                class="active"
+                data-i18n="map"
+              ></button
               ><button
-                id="reset"
-                class="text-button"
-                data-i18n="reset"
+                id="files-tab"
+                data-view="files"
+                data-i18n="filesTab"
+              ></button
+              ><button
+                id="checks-tab"
+                data-view="checks"
+                data-i18n="checksTab"
               ></button>
-            </div>
+            </nav>
+            <button id="reset" class="text-button" data-i18n="reset"></button>
           </div>
-          <div class="graph-canvas">
+          <div id="metrics" class="metrics" aria-label="Change summary"></div>
+          <section id="map-view" class="map-view">
             <div class="canvas-caption">
-              <span class="canvas-dot"></span
-              ><span data-i18n="canvasCaption"></span>
+              <span data-i18n="canvasCaption"></span
+              ><span id="visible-count"></span>
             </div>
-            <svg
-              id="graph"
-              viewBox="0 0 900 480"
-              role="img"
-              aria-label="Package import map"
-            ></svg>
-            <div id="graph-empty" class="graph-empty" hidden></div>
+            <div class="graph-canvas">
+              <svg
+                id="graph"
+                viewBox="0 0 900 480"
+                role="group"
+                aria-label="Package import map"
+              ></svg>
+              <div id="graph-empty" class="graph-empty" hidden></div>
+            </div>
             <div class="graph-legend">
               <span
                 ><i class="changed"></i><span data-i18n="changed"></span></span
               ><span
                 ><i class="impacted"></i><span data-i18n="review"></span></span
               ><span
-                ><i class="stable"></i><span data-i18n="stable"></span
-              ></span>
+                ><i class="stable"></i><span data-i18n="stable"></span></span
+              ><span class="edge-label" data-i18n="edgeDirection"></span>
             </div>
-          </div>
-          <div class="change-table">
-            <div class="section-title">
-              <h3 data-i18n="files"></h3>
-              <span id="change-count"></span>
+          </section>
+          <section id="files-view" class="content-view" hidden>
+            <div class="content-heading">
+              <div>
+                <h2 data-i18n="files"></h2>
+                <p data-i18n="filesHint"></p>
+              </div>
+              <span id="change-count" class="count"></span>
             </div>
             <div id="change-list"></div>
-          </div>
-          <section class="checklist">
-            <div class="panel-title">
+          </section>
+          <section id="checks-view" class="content-view" hidden>
+            <div class="content-heading">
               <h2 data-i18n="checklist"></h2>
               <button
                 id="markdown"
@@ -138,34 +167,46 @@
               ></button>
             </div>
             <div id="test-plan"></div>
-            <button id="copy" class="copy-button" data-i18n="copy"></button>
+            <button id="copy" class="primary" data-i18n="copy"></button>
           </section>
-        </section>
-        <aside class="details">
-          <section class="panel">
-            <div class="panel-title">
-              <h2 data-i18n="evidence"></h2>
-              <span id="node-status" class="pill"></span>
-            </div>
-            <div id="node-detail"></div>
-          </section>
-          <section class="scope-card">
-            <span>⌁</span>
-            <div>
-              <strong data-i18n="scopeTitle"></strong>
-              <p data-i18n="scopeNote"></p>
-              <div id="notes"></div>
-            </div>
-          </section>
+        </div>
+        <aside
+          id="inspector"
+          class="inspector"
+          aria-label="Import evidence"
+          hidden
+        >
+          <div class="inspector-heading">
+            <h2 data-i18n="evidence"></h2>
+            <button
+              id="close-detail"
+              class="icon-button"
+              aria-label="Close details"
+            >
+              <svg viewBox="0 0 20 20" aria-hidden="true">
+                <path d="m5 5 10 10M15 5 5 15" />
+              </svg>
+            </button>
+          </div>
+          <span id="node-status" class="pill"></span>
+          <div id="node-detail"></div>
         </aside>
       </section>
       <footer>
-        <span data-i18n="footer"></span
-        ><button
-          id="json-export"
-          class="text-button"
-          data-i18n="exportJson"
-        ></button>
+        <details class="scope-card">
+          <summary data-i18n="scopeTitle"></summary>
+          <p data-i18n="scopeNote"></p>
+          <div id="notes"></div>
+        </details>
+        <div class="footer-actions">
+          <span class="local-label"
+            ><i></i><span data-i18n="offline"></span></span
+          ><button
+            id="json-export"
+            class="text-button"
+            data-i18n="exportJson"
+          ></button>
+        </div>
       </footer>
     </main>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>

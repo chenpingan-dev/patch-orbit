@@ -3,26 +3,38 @@
   const $ = (id) => document.getElementById(id);
   const labels = {
     zh: {
-      offline: "离线报告",
+      reportLabel: "改动报告",
+      filesTab: "变更文件",
+      checksTab: "验证清单",
+      filesHint: "两个提交之间的文件变更",
+      closeDetail: "收起详情",
+      offline: "本地分析",
+      skip: "跳转到影响地图",
+      eyebrow: "GO CHANGE REVIEW",
+      headline: "看见改动的连锁反应",
+      evidenceKicker: "FOLLOW THE IMPORT",
+      edgeDirection: "箭头表示 import 方向",
+      manyHops: "4+ 跳依赖",
+      moduleScope: "模块复查范围",
       heading: "改动影响地图",
-      subtitle: "查看需要复查的 Go 包、依赖依据和验证清单",
-      import: "↑ 导入报告",
-      export: "↓ 保存离线报告",
+      subtitle: "从一处 Git 改动，沿导入关系找到需要复查的 Go 包",
+      import: "打开报告",
+      export: "保存报告",
       packages: "包目录",
       affected: "待复查",
       all: "全部包",
-      map: "改动影响地图",
+      map: "依赖地图",
       reset: "重置选择",
-      canvasCaption: "点击节点，查看最短依赖链",
+      canvasCaption: "点击包，查看关联路径和导入来源",
       changed: "已改动",
       review: "需复查",
       stable: "未匹配",
       files: "变更文件",
-      evidence: "为什么需要复查",
+      evidence: "依赖来源",
       checklist: "验证清单",
       download: "下载 ↗",
       copy: "复制检查命令",
-      scopeTitle: "范围有依据",
+      scopeTitle: "分析范围与限制",
       scopeNote:
         "按包导入关系推导，包含测试与构建条件；运行时调用、嵌入资源与外部模块不在首版范围",
       footer: "Patch Orbit · 对比两个已提交的 Git 快照",
@@ -71,26 +83,38 @@
       inspect: "查看",
     },
     en: {
-      offline: "Offline report",
+      reportLabel: "Change report",
+      filesTab: "Files",
+      checksTab: "Checks",
+      filesHint: "Files changed between the two commits",
+      closeDetail: "Close details",
+      offline: "Local analysis",
+      skip: "Skip to impact map",
+      eyebrow: "GO CHANGE REVIEW",
+      headline: "See where a change travels",
+      evidenceKicker: "FOLLOW THE IMPORT",
+      edgeDirection: "Arrows follow imports",
+      manyHops: "4+ import hops",
+      moduleScope: "Module review scope",
       heading: "Change impact map",
-      subtitle: "Find Go packages to review, backed by import evidence",
-      import: "↑ Import report",
-      export: "↓ Save offline report",
+      subtitle: "Follow a Git change through Go packages, one import at a time",
+      import: "Open a report",
+      export: "Save report",
       packages: "Packages",
       affected: "Review scope",
       all: "All packages",
-      map: "Change impact map",
+      map: "Import map",
       reset: "Reset selection",
-      canvasCaption: "Select a node to inspect its shortest import chain",
+      canvasCaption: "Select a package to inspect its import path",
       changed: "Changed",
       review: "Review",
       stable: "Unmatched",
       files: "Changed files",
-      evidence: "Why review this package",
+      evidence: "Import evidence",
       checklist: "Verification checklist",
       download: "Download ↗",
       copy: "Copy test commands",
-      scopeTitle: "Evidence-backed scope",
+      scopeTitle: "Analysis scope & limitations",
       scopeNote:
         "Package imports, including tests and build-tag variants; runtime calls, embedded assets and external modules are outside v0.1",
       footer: "Patch Orbit · Compare two committed Git snapshots",
@@ -246,7 +270,9 @@
   let data = validate(JSON.parse($("report-data").textContent)),
     selected = initial(data),
     scope = "affected",
-    query = "";
+    query = "",
+    activeView = "map",
+    inspectorOpen = false;
   let toastTimer;
   function toast(text) {
     $("toast").textContent = text;
@@ -266,16 +292,44 @@
   function metricCards() {
     const s = data.summary;
     $("metrics").innerHTML = [
-      ["changedPackages", s.changed_packages, "changedDetail", "◇", "amber"],
-      ["affectedPackages", s.affected_packages, "affectedDetail", "◎", ""],
-      ["transitive", s.transitive, "transitiveDetail", "⇢", "violet"],
-      ["unaffected", s.unaffected, "unaffectedDetail", "✓", "green"],
+      ["changedPackages", s.changed_packages, "changedDetail"],
+      ["affectedPackages", s.affected_packages, "affectedDetail"],
+      ["transitive", s.transitive, "transitiveDetail"],
+      ["unaffected", s.unaffected, "unaffectedDetail"],
     ]
       .map(
-        ([title, value, detail, glyph, color]) =>
-          `<article class="metric"><div><div class="metric-label">${esc(t(title))}</div><strong>${esc(num(value))}</strong><small>${esc(t(detail))}</small></div><span class="metric-icon ${color}">${glyph}</span></article>`,
+        ([label, value, detail]) =>
+          `<div class="metric" title="${esc(t(detail))}"><strong>${esc(num(value))}</strong><span>${esc(t(label))}</span></div>`,
       )
       .join("");
+  }
+  function renderView() {
+    ["map", "files", "checks"].forEach((view) => {
+      $(view + "-view").hidden = activeView !== view;
+      $(view + "-tab").classList.toggle("active", activeView === view);
+      $(view + "-tab").setAttribute(
+        "aria-pressed",
+        String(activeView === view),
+      );
+    });
+    const visible = inspectorOpen && activeView === "map";
+    $("inspector").hidden = !visible;
+    $("map-workspace").classList.toggle("inspector-open", visible);
+    $("reset").hidden = activeView !== "map";
+  }
+  function openDetail() {
+    inspectorOpen = true;
+    activeView = "map";
+    renderView();
+    renderSelection();
+  }
+  function closeDetail() {
+    inspectorOpen = false;
+    renderView();
+    const selectedNode = [
+      ...$("graph").querySelectorAll("[data-node-index]"),
+    ].find((node) => node.getAttribute("aria-label") === selected);
+    (selectedNode ?? $("map-tab")).focus({ preventScroll: true });
   }
   function candidates() {
     return data.nodes.filter(
@@ -291,7 +345,7 @@
       nodes
         .map(
           (n) =>
-            `<button class="package-row ${n.id === selected ? "active" : ""}" data-package="${esc(n.id)}"><span class="package-symbol ${n.changed ? "changed" : ""}">◈</span><span><strong>${esc(n.id)}</strong><small>${esc(!n.present ? t("deleted") : n.changed ? t("changed") : n.distance === null ? t("stable") : n.distance === 1 ? t("direct") : t("hops", { n: n.distance }))}</small></span></button>`,
+            `<button class="package-row ${n.id === selected ? "active" : ""}" data-package="${esc(n.id)}" aria-pressed="${n.id === selected}"><span class="package-symbol ${n.changed ? "changed" : ""}"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m3 6 7-4 7 4v8l-7 4-7-4V6Zm0 0 7 4 7-4m-7 4v8"/></svg></span><span><strong>${esc(n.id)}</strong><small>${esc(!n.present ? t("deleted") : n.changed ? t("changed") : n.distance === null ? t("stable") : n.distance === 1 ? t("direct") : t("hops", { n: n.distance }))}</small></span></button>`,
         )
         .join("") || `<div class="empty">${esc(t("empty"))}</div>`;
     $("package-list")
@@ -300,10 +354,12 @@
         (button) =>
           (button.onclick = () => {
             selected = button.dataset.package;
-            renderSelection();
+            openDetail();
           }),
       );
     $("package-note").textContent = t("matching", { n: nodes.length });
+    $("affected").setAttribute("aria-pressed", String(scope === "affected"));
+    $("all").setAttribute("aria-pressed", String(scope === "all"));
     $("affected").classList.toggle("active", scope === "affected");
     $("all").classList.toggle("active", scope === "all");
   }
@@ -313,57 +369,90 @@
     let list = candidates();
     if (!query && current && !list.some((n) => n.id === current.id))
       list = [current, ...list];
-    const sorted = [...list].sort(
-      (a, b) =>
-        Number(chain.has(b.id)) - Number(chain.has(a.id)) ||
-        (a.distance ?? 999) - (b.distance ?? 999) ||
-        a.id.localeCompare(b.id),
-    );
-    const visible = sorted.slice(0, 80),
-      positions = new Map();
+    const visible = [...list]
+      .sort(
+        (a, b) =>
+          Number(chain.has(b.id)) - Number(chain.has(a.id)) ||
+          (a.distance ?? 999) - (b.distance ?? 999) ||
+          a.id.localeCompare(b.id),
+      )
+      .slice(0, 80);
     const groups = new Map();
-    for (const n of visible) {
-      const level = n.distance === null ? 5 : Math.min(4, n.distance);
+    for (const node of visible) {
+      const level = node.distance === null ? 99 : Math.min(4, node.distance);
       if (!groups.has(level)) groups.set(level, []);
-      groups.get(level).push(n);
+      groups.get(level).push(node);
     }
-    const xs = { 0: 745, 1: 585, 2: 425, 3: 265, 4: 105, 5: 850 };
-    for (const [level, nodes] of groups) {
-      nodes.forEach((n, index) =>
-        positions.set(n.id, {
-          x: xs[level],
-          y: 70 + ((index + 1) * 340) / (nodes.length + 1),
+    const levels = [...groups.keys()].sort((a, b) => b - a);
+    const width = Math.max(700, levels.length * 178 + 32);
+    const rows = Math.max(
+      1,
+      ...[...groups.values()].map((nodes) => nodes.length),
+    );
+    const height = Math.max(360, rows * 86 + 130);
+    const positions = new Map();
+    let svg = `<defs><marker id="arrow" markerUnits="userSpaceOnUse" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="#b7c5db"/></marker><marker id="hot-arrow" markerUnits="userSpaceOnUse" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="#5484e2"/></marker></defs>`;
+    levels.forEach((level, column) => {
+      const x = (width - (levels.length - 1) * 178) / 2 + column * 178;
+      const nodes = groups.get(level);
+      const label =
+        level === 99
+          ? t("stable")
+          : level === 0
+            ? t(data.module_changed ? "moduleScope" : "changed")
+            : level === 1
+              ? t("direct")
+              : level === 4
+                ? t("manyHops")
+                : t("hops", { n: level });
+      svg += `<text class="column-label" x="${x}" y="35" text-anchor="middle">${esc(label)}</text><path class="column-line" d="M${x} 54 V${height - 23}"/>`;
+      nodes.forEach((node, i) =>
+        positions.set(node.id, {
+          x,
+          y: 80 + ((i + 0.5) * (height - 115)) / nodes.length,
         }),
       );
-    }
-    const edges = data.edges.filter(
-      (e) => positions.has(e.from) && positions.has(e.to),
-    );
-    let svg = `<defs><marker id="arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7" fill="#547696"/></marker><marker id="hot-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7" fill="#71d8d4"/></marker></defs><ellipse cx="680" cy="240" rx="85" ry="180" fill="none" stroke="#365271" stroke-width="1" stroke-dasharray="3 8" opacity=".4"/><ellipse cx="680" cy="240" rx="290" ry="205" fill="none" stroke="#365271" stroke-width="1" opacity=".15"/>`;
+    });
     const chainLinks = new Set(
       (current?.chain ?? [])
         .slice(0, -1)
         .map((id, i) => id + "\0" + current.chain[i + 1]),
     );
-    for (const e of edges) {
-      const a = positions.get(e.from),
-        b = positions.get(e.to),
-        hot = chainLinks.has(e.from + "\0" + e.to);
-      const middle = (a.x + b.x) / 2;
-      svg += `<path class="graph-edge ${hot ? "highlight" : ""}" d="M${a.x + 19},${a.y} C${middle},${a.y} ${middle},${b.y} ${b.x - 21},${b.y}" marker-end="url(#${hot ? "hot-arrow" : "arrow"})"/>`;
+    for (const edge of data.edges) {
+      const a = positions.get(edge.from),
+        b = positions.get(edge.to);
+      if (!a || !b) continue;
+      const hot = chainLinks.has(edge.from + "\0" + edge.to);
+      const sameColumn = a.x === b.x;
+      const middle = sameColumn ? a.x + 113 : (a.x + b.x) / 2;
+      const destination = sameColumn ? b.x + 74 : b.x - 76;
+      svg += `<path class="graph-edge ${hot ? "highlight" : ""}" d="M${a.x + 74},${a.y} C${middle},${a.y} ${middle},${b.y} ${destination},${b.y}" marker-end="url(#${hot ? "hot-arrow" : "arrow"})"/>`;
     }
-    visible.forEach((n, index) => {
-      const p = positions.get(n.id),
-        label = n.id.length > 23 ? "…" + n.id.slice(-22) : n.id;
-      svg += `<g class="graph-node ${n.changed ? "changed" : n.distance === null ? "stable" : ""} ${n.id === selected ? "selected" : ""}" data-node-index="${index}" transform="translate(${p.x},${p.y})" tabindex="0" role="button" aria-label="${esc(n.id)}"><title>${esc(n.id)}</title><circle class="halo" r="22"/><circle class="dot" r="6"/><text text-anchor="middle" y="42">${esc(label)}</text></g>`;
+    visible.forEach((node, i) => {
+      const p = positions.get(node.id),
+        parts = node.id.split("/");
+      const title = parts.pop() || node.id;
+      const parent = parts.join("/") || ".";
+      const shorten = (text, length) =>
+        text.length > length ? text.slice(0, length - 1) + "…" : text;
+      const state = status(node);
+      svg += `<g class="graph-node ${state} ${node.id === selected ? "selected" : ""}" data-node-index="${i}" transform="translate(${p.x},${p.y})" tabindex="0" role="button" aria-pressed="${node.id === selected}" aria-label="${esc(node.id)}"><title>${esc(node.id)} · ${esc(t(state))}</title><rect class="node-card" x="-73" y="-31" width="146" height="62" rx="9"/><circle class="node-dot" cx="-57" cy="-10" r="3"/><text class="node-name" x="-47" y="-6">${esc(shorten(title, 14))}</text><text class="node-path" x="-57" y="12">${esc(shorten(parent, 24))}</text></g>`;
     });
+    $("graph").setAttribute("viewBox", `0 0 ${width} ${height}`);
+    $("graph").style.minWidth = `${Math.max(660, width * 0.86)}px`;
     $("graph").innerHTML = svg;
     $("graph")
       .querySelectorAll("[data-node-index]")
       .forEach((node) => {
         const choose = () => {
+          const hadFocus = document.activeElement === node;
           selected = visible[Number(node.dataset.nodeIndex)].id;
-          renderSelection();
+          openDetail();
+          const replacement = [
+            ...$("graph").querySelectorAll("[data-node-index]"),
+          ].find((element) => element.getAttribute("aria-label") === selected);
+          if (hadFocus && replacement)
+            replacement.focus({ preventScroll: true });
         };
         node.onclick = choose;
         node.onkeydown = (event) => {
@@ -385,6 +474,7 @@
   function detail() {
     const n = data.nodes.find((n) => n.id === selected);
     if (!n) {
+      $("node-status").textContent = "";
       $("node-detail").innerHTML =
         `<div class="empty">${esc(t("empty"))}</div>`;
       return;
@@ -482,7 +572,11 @@
     $("module").textContent = data.module;
     $("base").textContent = data.base.slice(0, 7);
     $("head").textContent = data.head.slice(0, 7);
+    $("close-detail").setAttribute("aria-label", t("closeDetail"));
+    $("graph").setAttribute("aria-label", t("map"));
+    $("inspector").setAttribute("aria-label", t("evidence"));
     metricCards();
+    renderView();
     renderSelection();
     changes();
     plan();
@@ -525,11 +619,25 @@
     scope = "all";
     renderSelection();
   };
+  document.querySelectorAll("[data-view]").forEach((button) => {
+    button.onclick = () => {
+      activeView = button.dataset.view;
+      renderView();
+    };
+  });
+  $("close-detail").onclick = closeDetail;
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && inspectorOpen) {
+      closeDetail();
+    }
+  });
   $("reset").onclick = () => {
     query = "";
     $("search").value = "";
     selected = data.nodes.find((n) => n.changed)?.id ?? data.nodes[0]?.id;
     scope = "affected";
+    inspectorOpen = false;
+    renderView();
     renderSelection();
   };
   $("copy").onclick = async () => {
@@ -587,6 +695,8 @@
       query = "";
       scope = "affected";
       $("search").value = "";
+      inspectorOpen = false;
+      activeView = "map";
       render();
     } catch (error) {
       toast(error.message || t("invalid"));

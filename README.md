@@ -1,13 +1,20 @@
 # Patch Orbit
 
-**Turn a Go change into a review map — with the import chain that explains each package**
+### See where a Go change travels
 
-[Open impact map](https://chenpingan-dev.github.io/patch-orbit/) · [中文说明](README.zh-CN.md) · [MIT](LICENSE)
+[Explore the map →](https://chenpingan-dev.github.io/patch-orbit/) · [Download](https://github.com/chenpingan-dev/patch-orbit/releases) · [English](README.md) / [简体中文](README.zh-CN.md)
 
-![CI](https://github.com/chenpingan-dev/patch-orbit/actions/workflows/ci.yml/badge.svg)
-![Patch Orbit impact map](assets/screenshot.png)
+[![Tests](https://github.com/chenpingan-dev/patch-orbit/actions/workflows/ci.yml/badge.svg)](https://github.com/chenpingan-dev/patch-orbit/actions/workflows/ci.yml) [![MIT](https://img.shields.io/badge/license-MIT-3468d6)](LICENSE)
 
-Change a shared model and the API may need review three imports away. Patch Orbit reads two committed snapshots, walks reverse package imports and shows the shortest chain to a changed package. Each edge links back to a source file, import line and base/head snapshot.
+A shared model changes. The API that imports it is three packages away. **Follow the imports before you finish the review** — from a Git diff to connected packages, with the file and line behind each link.
+
+![Patch Orbit: a Go change and its connected packages](assets/screenshot.png)
+
+- **Map the review scope** — explore changed packages and their direct or indirect dependents
+- **Inspect the evidence** — select a package to open its shortest import chain, including base/head source lines
+- **Take the next step** — review changed files and save a test checklist from dedicated views
+
+One Go executable, two committed snapshots, one portable HTML report. No service to run, no model API key to configure.
 
 <a id="try-it"></a>
 
@@ -16,7 +23,7 @@ Change a shared model and the API may need review three imports away. Patch Orbi
 Go 1.23+ and Git. No model API, database, indexing service or external Go module dependencies.
 
 ```sh
-go install github.com/chenpingan-dev/patch-orbit/cmd/orbit@v0.1.0
+go install github.com/chenpingan-dev/patch-orbit/cmd/orbit@v0.1.1
 orbit -repo /path/to/your/go-repo -base HEAD~1 -head HEAD -html impact.html -json impact.json
 ```
 
@@ -51,6 +58,6 @@ go run ./cmd/demo
 
 The builder creates and removes a fresh synthetic repository under ignored `build/`, then emits `build/index.html` and `build/report.json`. Fixture history stays local. GitHub Pages serves the generated offline report.
 
-[Architecture](docs/architecture.md) · [Roadmap](docs/roadmap.md) · [Contributing](CONTRIBUTING.md)
+[Design](docs/design.md) · [Architecture](docs/architecture.md) · [Roadmap](docs/roadmap.md) · [Contributing](CONTRIBUTING.md)
 
 Related work: [GitNexus](https://github.com/abhigyanpatwari/GitNexus) provides broader code intelligence and impact tooling. Patch Orbit focuses on committed Go package imports, a single executable and a report with explicit import evidence. Independent, AI-assisted implementation; no upstream code is included.

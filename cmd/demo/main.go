@@ -94,7 +94,7 @@ func build() error {
 		return err
 	}
 	value.Synthetic = true
-	value.TitleI18n = map[string]string{"zh": "笔记模型改动 · 复查 8 个关联包", "en": "Notebook model change · review 8 packages"}
+	value.TitleI18n = map[string]string{"zh": "笔记模型更新", "en": "Notebook model update"}
 	html, err := report.HTML(value)
 	if err != nil {
 		return err
