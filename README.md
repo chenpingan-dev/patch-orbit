@@ -2,14 +2,16 @@
 
 **Turn a Go change into a review map — with the import chain that explains each package**
 
-[Live map](https://chenpingan-dev.github.io/patch-orbit/) · [中文说明](README.zh-CN.md) · [MIT](LICENSE)
+[Open impact map](https://chenpingan-dev.github.io/patch-orbit/) · [中文说明](README.zh-CN.md) · [MIT](LICENSE)
 
 ![CI](https://github.com/chenpingan-dev/patch-orbit/actions/workflows/ci.yml/badge.svg)
 ![Patch Orbit impact map](assets/screenshot.png)
 
 Change a shared model and the API may need review three imports away. Patch Orbit reads two committed snapshots, walks reverse package imports and shows the shortest chain to a changed package. Each edge links back to a source file, import line and base/head snapshot.
 
-## Try it
+<a id="try-it"></a>
+
+## Inspect a change
 
 Go 1.23+ and Git. No model API, database, indexing service or external Go module dependencies.
 
@@ -27,7 +29,7 @@ Or download a binary from [Releases](https://github.com/chenpingan-dev/patch-orb
 - Deleted packages and removed imports retained from the base snapshot
 - A full test command plus a focused package checklist; generating reports runs **no tests**
 - CN/EN switch, report JSON import/export, Markdown checklist and portable offline HTML
-- A synthetic demo built by analyzing two actual local fixture commits, not hand-drawn data
+- A built-in report generated from two local synthetic commits using the same analyzer
 
 ## What the map means
 

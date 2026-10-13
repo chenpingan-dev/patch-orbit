@@ -2,7 +2,7 @@
 
 **改了公共包，哪些地方值得复查？沿 import 链给出依据**
 
-[在线体验](https://chenpingan-dev.github.io/patch-orbit/) · [English](README.md)
+[查看影响地图](https://chenpingan-dev.github.io/patch-orbit/) · [English](README.md)
 
 ![改动影响地图](assets/screenshot.png)
 
@@ -27,7 +27,7 @@ orbit -repo 你的Go仓库路径 -base HEAD~1 -head HEAD -html impact.html -json
 
 跳过 vendor、隐藏目录、下划线目录、testdata、嵌套模块和符号链接。无效 import、缺失本地包和过大文件会留下扫描提示。每个快照最多选择 3,000 个文件 / 32 MiB，超过 1 MiB 的单个文件会跳过。地图最多展示 80 个节点，完整结果仍保留在列表和 JSON
 
-在线示例来自两个真实的本地合成 Git 提交，仅用来演示分析过程，不包含业务源码。界面支持中英文，使用微软雅黑，可保存单文件离线报告
+在线影响地图由两个本地合成 Git 提交分析生成，不包含业务源码；界面支持中英文，使用微软雅黑，可保存单文件离线报告
 
 ```sh
 go test ./...

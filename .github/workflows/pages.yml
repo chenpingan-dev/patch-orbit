@@ -1,4 +1,4 @@
-name: Deploy interactive demo
+name: Publish impact map
 on:
   push:
     branches: [main]
