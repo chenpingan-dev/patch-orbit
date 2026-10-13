@@ -6,11 +6,13 @@
 
 [![Tests](https://github.com/chenpingan-dev/patch-orbit/actions/workflows/ci.yml/badge.svg)](https://github.com/chenpingan-dev/patch-orbit/actions/workflows/ci.yml) [![MIT](https://img.shields.io/badge/license-MIT-3468d6)](LICENSE)
 
-A shared model changes. The API that imports it is three packages away. **Follow the imports before you finish the review** — from a Git diff to connected packages, with the file and line behind each link.
+Patch Orbit is a **Go (Golang) change impact analysis tool for code review**. Turn a Git diff between two committed snapshots into an interactive package dependency graph, follow reverse dependencies, and inspect the import file and line behind each link. Open the analysis as an offline HTML report and export a Markdown verification checklist.
+
+中文：Go 变更影响分析与依赖关系可视化工具，从 Git 提交差异定位需要复查的包，辅助代码评审
 
 ![Patch Orbit: a Go change and its connected packages](assets/screenshot.png)
 
-- **Map the review scope** — explore changed packages and their direct or indirect dependents
+- **Visualize package dependencies** — explore changed packages and their direct or indirect dependents
 - **Inspect the evidence** — select a package to open its shortest import chain, including base/head source lines
 - **Take the next step** — review changed files and save a test checklist from dedicated views
 
@@ -29,7 +31,7 @@ orbit -repo /path/to/your/go-repo -base HEAD~1 -head HEAD -html impact.html -jso
 
 Or download a binary from [Releases](https://github.com/chenpingan-dev/patch-orbit/releases). Open `impact.html` in your browser. Specify a root module repository; both commits need a root `go.mod`. Existing outputs need `-force`.
 
-## What you get
+## Change impact analysis and dependency visualization
 
 - A changed / dependent / unmatched package map, with search and clickable nodes
 - Shortest reverse-import chains and exact import evidence from both commits

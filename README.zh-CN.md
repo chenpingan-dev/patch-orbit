@@ -4,7 +4,7 @@
 
 [打开依赖地图 →](https://chenpingan-dev.github.io/patch-orbit/) · [下载工具](https://github.com/chenpingan-dev/patch-orbit/releases) · [English](README.md) / [简体中文](README.zh-CN.md)
 
-公共模型改了，三层依赖之外的 API 也可能需要复查。**沿着 import 看过去**：从两个 Git 提交找到关联包，每条连线都有文件和行号作为依据
+Patch Orbit 是一个面向代码评审的 **Go（Golang）变更影响分析与依赖关系可视化工具**，从两个已提交版本的 Git diff 生成包依赖图，沿反向依赖找到需要复查的包，并用 import 文件与行号说明每条关联
 
 ![Patch Orbit：改动包与关联依赖地图](assets/screenshot.zh-CN.png)
 
@@ -25,7 +25,7 @@ orbit -repo 你的Go仓库路径 -base HEAD~1 -head HEAD -html impact.html -json
 
 浏览器打开 `impact.html`，支持中英文切换、包搜索、来源查看和报告导入导出。已有报告需要 `-force` 才能覆盖，两个版本都要有根目录 `go.mod`
 
-## 地图如何判断范围
+## 变更影响分析与依赖图的范围
 
 依赖图合并改动前后的 import，所以删除的包和移除的依赖不会直接消失。包含测试文件和全部构建条件；依赖清单变化时把整个模块纳入复查
 
