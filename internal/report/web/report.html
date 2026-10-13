@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta
+      name="description"
+      content="Map a Git change to Go packages, import evidence and a focused review checklist"
+    />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; base-uri 'none'; object-src 'none'"
+    />
+    <title>Patch Orbit · 改动影响地图</title>
+    <style>
+      __STYLE__
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <a
+        class="brand"
+        href="https://github.com/chenpingan-dev/patch-orbit"
+        target="_blank"
+        rel="noreferrer"
+        ><span class="brand-icon">◎</span>Patch Orbit
+        <span class="version">v0.1</span></a
+      >
+      <div class="top-actions">
+        <span class="local-label"><i></i><span data-i18n="offline"></span></span
+        ><button id="language" class="quiet">English</button
+        ><a
+          class="source-link"
+          href="https://github.com/chenpingan-dev/patch-orbit#readme"
+          target="_blank"
+          rel="noreferrer"
+          >GitHub ↗</a
+        >
+      </div>
+    </header>
+    <main>
+      <div class="page-heading">
+        <div>
+          <div class="eyebrow">CHANGE INTELLIGENCE</div>
+          <h1 data-i18n="heading"></h1>
+          <p data-i18n="subtitle"></p>
+        </div>
+        <div class="file-actions">
+          <button id="import" class="secondary" data-i18n="import"></button
+          ><button id="export" class="primary" data-i18n="export"></button
+          ><input
+            id="file"
+            type="file"
+            accept=".json,application/json"
+            hidden
+          />
+        </div>
+      </div>
+      <div class="commit-bar">
+        <div>
+          <span id="sample-badge" class="pill"></span
+          ><strong id="report-title"></strong><span id="module"></span>
+        </div>
+        <div class="commit-range">
+          <span>BASE</span><code id="base"></code><b>→</b><span>HEAD</span
+          ><code id="head"></code>
+        </div>
+      </div>
+      <section
+        class="metrics"
+        id="metrics"
+        aria-label="Change summary"
+      ></section>
+      <section class="workspace">
+        <aside class="package-panel panel">
+          <div class="panel-title">
+            <h2 data-i18n="packages"></h2>
+            <span id="package-count" class="count"></span>
+          </div>
+          <div class="search-box">
+            <input id="search" type="search" autocomplete="off" />
+          </div>
+          <div class="scope-switch">
+            <button id="affected" class="active" data-i18n="affected"></button
+            ><button id="all" data-i18n="all"></button>
+          </div>
+          <div id="package-list" class="package-list"></div>
+          <div id="package-note" class="package-note"></div>
+        </aside>
+        <section class="graph-panel panel">
+          <div class="panel-title">
+            <h2 data-i18n="map"></h2>
+            <div class="graph-actions">
+              <span id="visible-count"></span
+              ><button
+                id="reset"
+                class="text-button"
+                data-i18n="reset"
+              ></button>
+            </div>
+          </div>
+          <div class="graph-canvas">
+            <div class="canvas-caption">
+              <span class="canvas-dot"></span
+              ><span data-i18n="canvasCaption"></span>
+            </div>
+            <svg
+              id="graph"
+              viewBox="0 0 900 480"
+              role="img"
+              aria-label="Package import map"
+            ></svg>
+            <div id="graph-empty" class="graph-empty" hidden></div>
+            <div class="graph-legend">
+              <span
+                ><i class="changed"></i><span data-i18n="changed"></span></span
+              ><span
+                ><i class="impacted"></i><span data-i18n="review"></span></span
+              ><span
+                ><i class="stable"></i><span data-i18n="stable"></span
+              ></span>
+            </div>
+          </div>
+          <div class="change-table">
+            <div class="section-title">
+              <h3 data-i18n="files"></h3>
+              <span id="change-count"></span>
+            </div>
+            <div id="change-list"></div>
+          </div>
+          <section class="checklist">
+            <div class="panel-title">
+              <h2 data-i18n="checklist"></h2>
+              <button
+                id="markdown"
+                class="text-button"
+                data-i18n="download"
+              ></button>
+            </div>
+            <div id="test-plan"></div>
+            <button id="copy" class="copy-button" data-i18n="copy"></button>
+          </section>
+        </section>
+        <aside class="details">
+          <section class="panel">
+            <div class="panel-title">
+              <h2 data-i18n="evidence"></h2>
+              <span id="node-status" class="pill"></span>
+            </div>
+            <div id="node-detail"></div>
+          </section>
+          <section class="scope-card">
+            <span>⌁</span>
+            <div>
+              <strong data-i18n="scopeTitle"></strong>
+              <p data-i18n="scopeNote"></p>
+              <div id="notes"></div>
+            </div>
+          </section>
+        </aside>
+      </section>
+      <footer>
+        <span data-i18n="footer"></span
+        ><button
+          id="json-export"
+          class="text-button"
+          data-i18n="exportJson"
+        ></button>
+      </footer>
+    </main>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script id="report-data" type="application/json">
+      __REPORT__
+    </script>
+    <script>
+      __APP__;
+    </script>
+  </body>
+</html>
