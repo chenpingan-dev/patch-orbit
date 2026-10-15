@@ -81,6 +81,22 @@
       focusedCommand: "缩小定位范围",
       basedOn: "导入依据",
       inspect: "查看",
+      directImports: "直接导入对照",
+      sourceFilter: "筛选导入来源",
+      allSources: "全部来源",
+      baseOnly: "仅改动前",
+      headOnly: "仅改动后",
+      bothSnapshots: "两边都有",
+      before: "改动前",
+      after: "改动后",
+      sourceCount: "{shown}/{total} 个文件来源",
+      noSources: "没有符合筛选条件的来源",
+      noImports: "未解析到对本地包的直接导入",
+      sourceScope: "来源筛选不改变地图的复查范围",
+      sourceHelp: "如何对照",
+      sourceHelpText:
+        "按同一文件和 import 路径配对，行号移动仍算两边都有；仅前或仅后表示只在该快照解析到，扫描跳过的文件也可能影响结果",
+      fullPath: "查看完整关联路径",
     },
     en: {
       reportLabel: "Change report",
@@ -138,7 +154,7 @@
       changedReason: "This package contains changed Go source files",
       globalReason: "The dependency manifest changed; review the entire module",
       globalNote: "go.mod / go.sum changed; every package is in scope",
-      fileCount: "{n} Go files",
+      fileCount: "Go files: {n}",
       focusDescription:
         "Review {n} surviving packages. Run all tests first, then use the map to narrow the search",
       notExecuted: "Generating this report did not execute tests",
@@ -162,6 +178,22 @@
       focusedCommand: "Narrow the search",
       basedOn: "Import evidence",
       inspect: "Inspect",
+      directImports: "Direct import comparison",
+      sourceFilter: "Filter import sources",
+      allSources: "All sources",
+      baseOnly: "Base only",
+      headOnly: "Head only",
+      bothSnapshots: "Both snapshots",
+      before: "Base",
+      after: "Head",
+      sourceCount: "{shown}/{total} file sources",
+      noSources: "No sources match this filter",
+      noImports: "No direct imports of local packages were parsed",
+      sourceScope: "Source filters keep the map's review scope unchanged",
+      sourceHelp: "How sources are paired",
+      sourceHelpText:
+        "Pair the same file and import path, even when line numbers move. Base/head only means parsed in that snapshot only; skipped files can also affect the result",
+      fullPath: "Inspect the full impact path",
     },
   };
   let locale = "zh";
@@ -250,7 +282,10 @@
             ["file", "import", "snapshot"].every(
               (k) => typeof e[k] === "string",
             ) &&
-            integer(e.line),
+            ["base", "head"].includes(e.snapshot) &&
+            integer(e.line) &&
+            e.line > 0 &&
+            (e.test === undefined || typeof e.test === "boolean"),
         )
       )
         throw Error(t("invalid"));
@@ -272,6 +307,7 @@
     scope = "affected",
     query = "",
     activeView = "map",
+    sourceFilter = "all",
     inspectorOpen = false;
   let toastTimer;
   function toast(text) {
@@ -471,6 +507,121 @@
       data.nodes.length ? "empty" : "noPackages",
     );
   }
+  function snapshotState(base, head) {
+    if (base.length && head.length) {
+      return "both";
+    }
+    return base.length ? "base" : "head";
+  }
+  const sourceLabel = (state) =>
+    t({ base: "baseOnly", head: "headOnly", both: "bothSnapshots" }[state]);
+  function groupEvidence(evidence) {
+    const groups = new Map();
+    for (const proof of evidence) {
+      // A moved import keeps its identity; line numbers belong to each snapshot.
+      const key = JSON.stringify([
+        proof.file,
+        proof.import,
+        Boolean(proof.test),
+      ]);
+      if (!groups.has(key)) {
+        groups.set(key, {
+          file: proof.file,
+          import: proof.import,
+          test: Boolean(proof.test),
+          base: new Set(),
+          head: new Set(),
+        });
+      }
+      groups.get(key)[proof.snapshot].add(proof.line);
+    }
+    return [...groups.values()]
+      .map((group) => {
+        const base = [...group.base].sort((a, b) => a - b);
+        const head = [...group.head].sort((a, b) => a - b);
+        return { ...group, base, head, state: snapshotState(base, head) };
+      })
+      .sort(
+        (a, b) =>
+          a.file.localeCompare(b.file) || a.import.localeCompare(b.import),
+      );
+  }
+  function sourceHTML(group) {
+    const positions = [
+      ["base", "before", data.base],
+      ["head", "after", data.head],
+    ]
+      .map(
+        ([snapshot, label, commit]) =>
+          `<div class="source-position ${group[snapshot].length ? "" : "absent"}"><span title="${esc(commit)}">${esc(t(label))}</span><strong>${group[snapshot].length ? group[snapshot].map((line) => `L${num(line)}`).join(", ") : "—"}</strong></div>`,
+      )
+      .join("");
+    return `<div class="import-evidence" data-source-state="${group.state}"><div class="evidence-source"><strong>${esc(group.file)}</strong><span class="snapshot-tag ${group.state}">${esc(sourceLabel(group.state))}</span></div><div class="source-positions">${positions}</div><code>import "${esc(group.import)}"</code>${group.test ? `<span class="test-source">${esc(t("testFiles"))}</span>` : ""}</div>`;
+  }
+  function directImports(n) {
+    const imports = data.edges
+      .filter((edge) => edge.from === n.id)
+      .map((edge) => ({ ...edge, groups: groupEvidence(edge.evidence) }))
+      .sort((a, b) => a.to.localeCompare(b.to));
+    if (!imports.length) {
+      return `<section class="direct-imports"><h4>${esc(t("directImports"))}</h4><p class="source-empty">${esc(t("noImports"))}</p></section>`;
+    }
+
+    const total = imports.reduce(
+      (count, edge) => count + edge.groups.length,
+      0,
+    );
+    const visible = imports
+      .map((edge) => ({
+        ...edge,
+        visible: edge.groups.filter(
+          (group) => sourceFilter === "all" || group.state === sourceFilter,
+        ),
+      }))
+      .filter((edge) => edge.visible.length);
+    const shown = visible.reduce(
+      (count, edge) => count + edge.visible.length,
+      0,
+    );
+    const options = [
+      ["all", "allSources"],
+      ["base", "baseOnly"],
+      ["head", "headOnly"],
+      ["both", "bothSnapshots"],
+    ]
+      .map(
+        ([value, label]) =>
+          `<option value="${value}" ${sourceFilter === value ? "selected" : ""}>${esc(t(label))}</option>`,
+      )
+      .join("");
+    const cards = visible
+      .map((edge, index) => {
+        const state = snapshotState(
+          edge.evidence.filter((proof) => proof.snapshot === "base"),
+          edge.evidence.filter((proof) => proof.snapshot === "head"),
+        );
+        return `<details class="dependency-card" data-import-target="${esc(edge.to)}" ${index === 0 ? "open" : ""}><summary><strong>${esc(edge.to)}</strong><span class="snapshot-tag ${state}">${esc(sourceLabel(state))}</span></summary>${edge.visible.map(sourceHTML).join("")}</details>`;
+      })
+      .join("");
+    return `<section class="direct-imports"><h4>${esc(t("directImports"))}</h4><label class="source-filter" for="source-filter"><span>${esc(t("sourceFilter"))}</span><select id="source-filter">${options}</select></label><p class="source-count" role="status">${esc(t("sourceCount", { shown, total }))}</p>${cards || `<p class="source-empty">${esc(t("noSources"))}</p>`}<p class="source-scope">${esc(t("sourceScope"))}</p><details class="source-help"><summary>${esc(t("sourceHelp"))}</summary><p>${esc(t("sourceHelpText"))}</p></details></section>`;
+  }
+  function impactPath(n) {
+    let html = `<details class="path-evidence"><summary>${esc(t("fullPath"))}</summary><div class="chain-list">`;
+    n.chain.forEach((id, index) => {
+      html += `<div class="chain-step">${esc(id)}</div>`;
+      if (index < n.chain.length - 1) {
+        const edge = data.edges.find(
+          (candidate) =>
+            candidate.from === id && candidate.to === n.chain[index + 1],
+        );
+        html += `<div class="chain-arrow">↓ ${esc(t("basedOn"))}</div>`;
+        html += groupEvidence(edge?.evidence ?? [])
+          .map(sourceHTML)
+          .join("");
+      }
+    });
+    return html + "</div></details>";
+  }
   function detail() {
     const n = data.nodes.find((n) => n.id === selected);
     if (!n) {
@@ -489,30 +640,19 @@
       html += `<div class="node-empty">${esc(t("globalReason"))}</div>`;
     else if (n.chain.length < 2)
       html += `<div class="node-empty">${esc(t("noChain"))}</div>`;
-    else {
-      html += '<div class="chain-list">';
-      n.chain.forEach((id, index) => {
-        html += `<div class="chain-step">${esc(id)}</div>`;
-        if (index < n.chain.length - 1) {
-          const edge = data.edges.find(
-            (e) => e.from === id && e.to === n.chain[index + 1],
-          );
-          html += `<div class="chain-arrow">↓ ${esc(t("basedOn"))}</div>`;
-          const proofs = new Map();
-          for (const e of edge?.evidence ?? []) {
-            const key = JSON.stringify([e.file, e.line, e.import, e.test]);
-            const proof = proofs.get(key);
-            if (proof) proof.snapshot += " + " + e.snapshot;
-            else proofs.set(key, { ...e });
-          }
-          for (const e of [...proofs.values()].slice(0, 3)) {
-            html += `<div class="import-evidence"><span class="snapshot-tag">${esc(e.snapshot.toUpperCase())}</span>${esc(e.file)}:${esc(e.line)}${e.test ? ` · ${esc(t("testFiles"))}` : ""}<code>import "${esc(e.import)}"</code></div>`;
-          }
-        }
-      });
-      html += "</div>";
+    html += directImports(n);
+    if (!n.changed && !data.module_changed && n.chain.length >= 2) {
+      html += impactPath(n);
     }
     $("node-detail").innerHTML = html;
+    const filter = $("source-filter");
+    if (filter) {
+      filter.onchange = () => {
+        sourceFilter = filter.value;
+        detail();
+        $("source-filter").focus({ preventScroll: true });
+      };
+    }
   }
   function commands() {
     const targets = data.nodes
@@ -636,6 +776,7 @@
     $("search").value = "";
     selected = data.nodes.find((n) => n.changed)?.id ?? data.nodes[0]?.id;
     scope = "affected";
+    sourceFilter = "all";
     inspectorOpen = false;
     renderView();
     renderSelection();
@@ -694,6 +835,7 @@
       selected = data.nodes.find((n) => n.changed)?.id ?? data.nodes[0]?.id;
       query = "";
       scope = "affected";
+      sourceFilter = "all";
       $("search").value = "";
       inspectorOpen = false;
       activeView = "map";

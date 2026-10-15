@@ -18,11 +18,12 @@ type Change struct {
 	GoSource bool   `json:"go_source"`
 }
 
+// Evidence locates one parsed import in a committed repository snapshot.
 type Evidence struct {
 	File     string `json:"file"`
-	Line     int    `json:"line"`
+	Line     int    `json:"line"` // One-based physical line; //line directives do not remap it.
 	Import   string `json:"import"`
-	Snapshot string `json:"snapshot"`
+	Snapshot string `json:"snapshot"` // "base" or "head", independent of whether the file changed.
 	Test     bool   `json:"test"`
 }
 
@@ -149,7 +150,7 @@ func graph(snapshot Snapshot, version string) (snapshotGraph, error) {
 			if quoteErr != nil {
 				continue
 			}
-			parsed[dir] = append(parsed[dir], Evidence{File: name, Line: set.Position(imp.Pos()).Line,
+			parsed[dir] = append(parsed[dir], Evidence{File: name, Line: set.PositionFor(imp.Pos(), false).Line,
 				Import: value, Snapshot: version, Test: strings.HasSuffix(name, "_test.go")})
 		}
 	}

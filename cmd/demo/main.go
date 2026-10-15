@@ -80,21 +80,26 @@ func build() error {
 	if err := write("internal/model/package.go", "package model\n\nconst Version = 2\n"); err != nil {
 		return err
 	}
+	// Keep one import at a new line, remove one, and add one in the same package.
+	service := "package service\n\n// Synthetic search integration\nimport (\n\t_ \"example.local/notebox/internal/export\"\n\t_ \"example.local/notebox/internal/search\"\n)\n\nconst Version = 2\n"
+	if err := write("internal/service/package.go", service); err != nil {
+		return err
+	}
 	if err := write("README.md", "Synthetic notebook fixture used only to build the demo\n"); err != nil {
 		return err
 	}
 	if err := run("add", "."); err != nil {
 		return err
 	}
-	if err := run("commit", "-m", "Synthetic fixture model change"); err != nil {
+	if err := run("commit", "-m", "Synthetic fixture search integration"); err != nil {
 		return err
 	}
-	value, err := impact.Analyze(context.Background(), root, "HEAD~1", "HEAD", "Notebook model change")
+	value, err := impact.Analyze(context.Background(), root, "HEAD~1", "HEAD", "Notebook search integration")
 	if err != nil {
 		return err
 	}
 	value.Synthetic = true
-	value.TitleI18n = map[string]string{"zh": "笔记模型更新", "en": "Notebook model update"}
+	value.TitleI18n = map[string]string{"zh": "笔记检索接入", "en": "Notebook search integration"}
 	html, err := report.HTML(value)
 	if err != nil {
 		return err
@@ -112,7 +117,7 @@ func build() error {
 	if err := os.WriteFile("build/report.json", append(data, '\n'), 0644); err != nil {
 		return err
 	}
-	fmt.Printf("Built synthetic demo: %d changed package, %d packages to review\n", value.Summary.ChangedPackages, value.Summary.AffectedPackages)
+	fmt.Printf("Built synthetic report: %d changed packages, %d packages to review\n", value.Summary.ChangedPackages, value.Summary.AffectedPackages)
 	return nil
 }
 func main() {

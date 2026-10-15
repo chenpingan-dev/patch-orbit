@@ -9,7 +9,7 @@ Patch Orbit 是一个面向代码评审的 **Go（Golang）变更影响分析与
 ![Patch Orbit：改动包与关联依赖地图](assets/screenshot.zh-CN.png)
 
 - **看复查范围**：区分已改动的包、直接依赖者和间接依赖者
-- **查关联依据**：选中一个包，展开最短导入链和改动前后的源码位置
+- **对照导入来源**：区分仅改动前、仅改动后和两边都有，查看行号移动前后的源码位置
 - **继续验证**：独立查看变更文件，复制测试命令或下载复查清单
 
 一个 Go 程序、两个已提交的版本、一份可离线打开的 HTML 报告，无需部署服务或配置模型 API Key
@@ -19,11 +19,21 @@ Patch Orbit 是一个面向代码评审的 **Go（Golang）变更影响分析与
 需要 Git 和 Go 1.23+，也可以直接从 [Releases](https://github.com/chenpingan-dev/patch-orbit/releases) 下载编译好的程序
 
 ```sh
-go install github.com/chenpingan-dev/patch-orbit/cmd/orbit@v0.1.1
+go install github.com/chenpingan-dev/patch-orbit/cmd/orbit@v0.1.2
 orbit -repo 你的Go仓库路径 -base HEAD~1 -head HEAD -html impact.html -json impact.json
 ```
 
 浏览器打开 `impact.html`，支持中英文切换、包搜索、来源查看和报告导入导出。已有报告需要 `-force` 才能覆盖，两个版本都要有根目录 `go.mod`
+
+## 对照改动前后的 import
+
+选中一个包，在「直接导入对照」中展开目标包，改动包也能查看自己的导入。选择「仅改动前」「仅改动后」或「两边都有」筛选文件来源，地图与验证清单仍保留完整复查范围。需要追溯依赖者时，展开「查看完整关联路径」
+
+内置的合成笔记仓库把 `service → store` 换成 `service → search`：来源面板会保留旧的 `store` 导入、显示新的 `search` 导入，并把保留的 `export` 导入配对为改动前 L4 / 改动后 L5。只移动行号不会被误标为删除和新增；配对依据是文件路径、import 路径和测试文件标记，文件重命名仍作为前后独立来源
+
+![对照仅改动前、仅改动后和两边都有的导入来源](assets/import-comparison.zh-CN.png)
+
+状态只说明在哪个快照中**解析到了来源**，不保证依赖一定被新增或移除；被跳过或语法无效的文件也会影响结果，请结合扫描提示检查。旧的 `patch-orbit/v1` JSON 报告仍可导入；旧报告若受到 Go `//line` 指令影响，需要重新生成才能修正源码位置
 
 ## 变更影响分析与依赖图的范围
 

@@ -13,7 +13,7 @@ Patch Orbit is a **Go (Golang) change impact analysis tool for code review**. Tu
 ![Patch Orbit: a Go change and its connected packages](assets/screenshot.png)
 
 - **Visualize package dependencies** — explore changed packages and their direct or indirect dependents
-- **Inspect the evidence** — select a package to open its shortest import chain, including base/head source lines
+- **Compare imports** — see base-only, head-only and shared sources, including exact positions when an import moves lines
 - **Take the next step** — review changed files and save a test checklist from dedicated views
 
 One Go executable, two committed snapshots, one portable HTML report. No service to run, no model API key to configure.
@@ -25,11 +25,21 @@ One Go executable, two committed snapshots, one portable HTML report. No service
 Go 1.23+ and Git. No model API, database, indexing service or external Go module dependencies.
 
 ```sh
-go install github.com/chenpingan-dev/patch-orbit/cmd/orbit@v0.1.1
+go install github.com/chenpingan-dev/patch-orbit/cmd/orbit@v0.1.2
 orbit -repo /path/to/your/go-repo -base HEAD~1 -head HEAD -html impact.html -json impact.json
 ```
 
 Or download a binary from [Releases](https://github.com/chenpingan-dev/patch-orbit/releases). Open `impact.html` in your browser. Specify a root module repository; both commits need a root `go.mod`. Existing outputs need `-force`.
+
+## Compare an import before and after a change
+
+Select a package, then open a target under **Direct import comparison**. A changed package exposes its own imports too. Choose **Base only**, **Head only** or **Both snapshots** to filter file sources; the map and test checklist keep their full review scope. Expand **Inspect the full impact path** to follow a dependent package back to a changed package.
+
+For example, the synthetic notebook report replaces `service → store` with `service → search`. The inspector keeps the old `store` source, shows the new `search` source, and pairs the retained `export` import at base L4 / head L5. Moving a line is not treated as removing and adding an import. Matching uses file path, import path and test-file status; a file rename remains separate before/after evidence.
+
+![Compare base-only, head-only and shared import sources](assets/import-comparison.png)
+
+These labels describe **parsed evidence**, not a guarantee that a dependency was added or removed: skipped or invalid source files can affect the result. Review the scan notes. Existing `patch-orbit/v1` JSON reports remain importable; regenerate older reports to correct locations affected by Go `//line` directives.
 
 ## Change impact analysis and dependency visualization
 

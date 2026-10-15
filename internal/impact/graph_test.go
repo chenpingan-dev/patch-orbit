@@ -98,3 +98,75 @@ func TestMissingModuleIsExplicitError(t *testing.T) {
 		t.Fatal("missing module accepted")
 	}
 }
+
+func TestEvidenceRetainsSnapshotSpecificLinesAndFiles(t *testing.T) {
+	before := snapshot(map[string]string{
+		"old/package.go":         "package old",
+		"new/package.go":         "package new",
+		"stable/package.go":      "package stable",
+		"api/package.go":         "package api\nimport _ \"example.test/app/service\"",
+		"service/package.go":     "package service\n\nimport (\n _ \"example.test/app/old\"\n _ \"example.test/app/stable\"\n)\n",
+		"service/legacy_test.go": "package service\nimport _ \"example.test/app/old\"\n",
+	})
+	after := snapshot(map[string]string{
+		"old/package.go":              "package old",
+		"new/package.go":              "package new",
+		"stable/package.go":           "package stable",
+		"api/package.go":              "package api\nimport _ \"example.test/app/service\"",
+		"service/package.go":          "package service\n\n// Integration changed\n\nimport (\n _ \"example.test/app/stable\"\n _ \"example.test/app/new\"\n)\n",
+		"service/replacement_test.go": "package service\nimport _ \"example.test/app/new\"\n",
+	})
+	report, err := Build(before, after, []Change{
+		{Path: "service/package.go", Status: "M"},
+		{Path: "service/legacy_test.go", Status: "D"},
+		{Path: "service/replacement_test.go", Status: "A"},
+	}, "before", "after", "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string][]Evidence{
+		"old": {
+			{File: "service/legacy_test.go", Line: 2, Import: "example.test/app/old", Snapshot: "base", Test: true},
+			{File: "service/package.go", Line: 4, Import: "example.test/app/old", Snapshot: "base"},
+		},
+		"new": {
+			{File: "service/package.go", Line: 7, Import: "example.test/app/new", Snapshot: "head"},
+			{File: "service/replacement_test.go", Line: 2, Import: "example.test/app/new", Snapshot: "head", Test: true},
+		},
+		"stable": {
+			{File: "service/package.go", Line: 5, Import: "example.test/app/stable", Snapshot: "base"},
+			{File: "service/package.go", Line: 6, Import: "example.test/app/stable", Snapshot: "head"},
+		},
+	}
+	for _, edge := range report.Edges {
+		if edge.From != "service" {
+			continue
+		}
+		if !reflect.DeepEqual(edge.Evidence, want[edge.To]) {
+			t.Errorf("%s evidence: got %#v, want %#v", edge.To, edge.Evidence, want[edge.To])
+		}
+		delete(want, edge.To)
+	}
+	if len(want) != 0 {
+		t.Fatalf("missing edges: %v", want)
+	}
+	if !reflect.DeepEqual(node(t, report, "api").Chain, []string{"api", "service"}) || report.Summary.AffectedPackages != 2 {
+		t.Fatal("import comparison changed the conservative review scope", report)
+	}
+}
+
+func TestEvidenceUsesPhysicalSourceLines(t *testing.T) {
+	sources := snapshot(map[string]string{
+		"model/package.go": "package model",
+		"api/package.go":   "package api\nimport (\n//line generated.go:900\n _ \"example.test/app/model\"\n)\n",
+	})
+	report, err := Build(sources, sources, []Change{{Path: "model/package.go", Status: "M"}}, "before", "after", "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, proof := range report.Edges[0].Evidence {
+		if proof.File != "api/package.go" || proof.Line != 4 {
+			t.Errorf("import location must use the physical repository file: %#v", proof)
+		}
+	}
+}
